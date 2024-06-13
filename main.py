@@ -54,7 +54,7 @@ async def add(ctx, *, channel_name):
 
     await send_attachments(new_channel, attachments)
 
-    await ctx.send(f"Media saved 😋.")
+    await ctx.send(f"Media 📺 saved 😋 successfully.")
 
 @bot.command()
 async def addto(ctx, channel_id: int):
@@ -94,16 +94,16 @@ async def search(ctx, *, search_term):
 
     embeds = []
     for channel in matched_channels:
-        embed = discord.Embed(title="Media Found", description=channel.name)
-        embed.set_footer(text=f"Media ID: {channel.id}")
+        embed = discord.Embed(title="𝐑𝐞𝐩𝐥𝐲 𝐭𝐨 𝐚 𝐦𝐬𝐠 𝐰𝐢𝐭𝐡 .𝐚𝐝𝐝𝐭𝐨 <𝐢𝐝> 𝐭𝐨 𝐚𝐝𝐝 𝐦𝐨𝐫𝐞 𝐜𝐨𝐧𝐭𝐞𝐧𝐭 𝐭𝐨 𝐭𝐡𝐢𝐬 𝐜𝐚𝐭𝐞𝐠𝐨𝐫𝐲", description=channel.name)
+        embed.set_footer(text=f".addto {channel.id}")
         embeds.append(embed)
 
     current_page = 0
 
     async def send_page(page):
         msg = await ctx.send(embed=embeds[page])
-        await msg.add_reaction("⬅️")
-        await msg.add_reaction("➡️")
+        await msg.add_reaction("◀️")
+        await msg.add_reaction("▶️")
         await msg.add_reaction("✅")
 
         def check(reaction, user):
@@ -112,11 +112,11 @@ async def search(ctx, *, search_term):
         while True:
             try:
                 reaction, user = await bot.wait_for('reaction_add', timeout=60.0, check=check)
-                if str(reaction.emoji) == "⬅️":
+                if str(reaction.emoji) == "◀️":
                     if page > 0:
                         page -= 1
                         await msg.edit(embed=embeds[page])
-                elif str(reaction.emoji) == "➡️":
+                elif str(reaction.emoji) == "▶️":
                     if page < len(embeds) - 1:
                         page += 1
                         await msg.edit(embed=embeds[page])
@@ -152,22 +152,22 @@ async def show(ctx):
         await ctx.send("No channels found.")
         return
 
+    
+    
+                
+
+
     pages = []
     current_page = []
 
     for idx, channel in enumerate(text_channels, start=1):
-        if len(current_page) < 10:
+        if len(current_page) < 8:
             current_page.append(channel)
-        if len(current_page) == 10 or idx == len(text_channels):
+        if len(current_page) == 8 or idx == len(text_channels):
             pages.append(current_page)
             current_page = []
 
     current_page_index = 0
-
-    
-
-        
-
 
     async def send_page(page):
         embed = discord.Embed(title=f"Channels Page {page+1}/{len(pages)}")
