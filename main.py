@@ -129,6 +129,7 @@ async def search(ctx, *, search_term):
                 await msg.remove_reaction(reaction, user)
             except:
                 break
+        await msg.delete()  # Delete the embed message after interaction is complete
 
     await send_page(current_page)
 
@@ -136,7 +137,7 @@ async def search(ctx, *, search_term):
 async def show(ctx):
     # Define the server IDs from which you want to display channels
     server_ids = [1250835568644853760,1250740008588017765]  # Add more server IDs if needed
-    
+
     guild = bot.get_guild(guild_id)
     if guild is None:
         await ctx.send("Guild not found.")
@@ -152,11 +153,6 @@ async def show(ctx):
         await ctx.send("No channels found.")
         return
 
-    
-    
-                
-
-
     pages = []
     current_page = []
 
@@ -170,7 +166,7 @@ async def show(ctx):
     current_page_index = 0
 
     async def send_page(page):
-        embed = discord.Embed(title=f"Channels Page {page+1}/{len(pages)}")
+        embed = discord.Embed(title=f"Category Page {page+1}/{len(pages)}")
         for i, channel in enumerate(pages[page], start=1):
             embed.add_field(name=f"{i}.", value=channel.name, inline=False)
         msg = await ctx.send(embed=embed)
@@ -196,13 +192,16 @@ async def show(ctx):
                     break
                 elif str(reaction.emoji) == "⬅️" and page > 0:
                     await send_page(page - 1)
+                    await msg.delete()  # Delete the current page message
                     break
                 elif str(reaction.emoji) == "➡️" and page < len(pages) - 1:
                     await send_page(page + 1)
+                    await msg.delete()  # Delete the current page message
                     break
                 await msg.remove_reaction(reaction, user)
             except:
                 break
+        await msg.delete()  # Delete the embed message after interaction is complete
 
     await send_page(current_page_index)
 
@@ -214,8 +213,6 @@ user_channels = {}
 source_server_id = 1248192277428310016  # Replace with your source server ID
 target_server_id = 1250835568644853760  # Replace with your target server ID
 source_channel_id = 1250850424202985512  # Replace with your source channel ID
-
-
 
 @bot.command()
 async def tm(ctx):
@@ -245,7 +242,7 @@ async def tm(ctx):
 
             # Repost the media in the user's channel
             for attachment in message.attachments:
-                await channel.send( file=await attachment.to_file())
+                await channel.send(file=await attachment.to_file())
 
     await ctx.send("Media transfer complete.")
 
@@ -273,7 +270,7 @@ async def on_message(message):
 
             # Repost the media in the user's channel
             for attachment in message.attachments:
-                await channel.send( file=await attachment.to_file())
+                await channel.send(file=await attachment.to_file())
 
     # Process commands if any
     await bot.process_commands(message)
