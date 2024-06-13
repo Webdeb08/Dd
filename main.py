@@ -65,7 +65,7 @@ async def addto(ctx, channel_id: int):
 
     channel = guild.get_channel(channel_id)
     if channel is None:
-        await ctx.send("Channel not found.")
+        await ctx.send("Media id not found.")
         return
 
     # Check if the command was a reply to a message with attachments
@@ -142,7 +142,7 @@ async def show(ctx):
     text_channels = guild.text_channels
 
     if not text_channels:
-        await ctx.send("No channels found.")
+        await ctx.send("No media found.")
         return
 
     pages = []
@@ -158,7 +158,7 @@ async def show(ctx):
     current_page_index = 0
 
     async def send_page(page):
-        embed = discord.Embed(title=f"Channels Page {page+1}/{len(pages)}")
+        embed = discord.Embed(title=f"Category Page {page+1}/{len(pages)}")
         for i, channel in enumerate(pages[page], start=1):
             embed.add_field(name=f"{i}.", value=channel.name, inline=False)
         msg = await ctx.send(embed=embed)
