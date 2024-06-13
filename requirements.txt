@@ -1,2 +1,2 @@
-discord.py
-aiohttp==3.8.1
+discord
+aiohttp
