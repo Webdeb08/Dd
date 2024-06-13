@@ -4,7 +4,7 @@ import os
 import aiohttp
 import io
 from keep_alive import keep_alive
-
+from discord.ui import Button, View
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
@@ -101,46 +101,41 @@ async def search(ctx, *, search_term):
 
     current_page = 0
 
-    async def send_page(page):
-        embed = embeds[page]
-        components = [
-            discord.ui.Button(label="⬅️", custom_id="left", style=discord.ButtonStyle.primary),
-            discord.ui.Button(label="➡️", custom_id="right", style=discord.ButtonStyle.primary),
-            discord.ui.Button(label="Send All Media", custom_id="send_all", style=discord.ButtonStyle.success),
-            discord.ui.Button(label="Copy ID", custom_id="copy_id", style=discord.ButtonStyle.secondary)
-        ]
-        msg = await ctx.send(embed=embed, components=[components])
+    class MediaView(discord.ui.View):
+        def __init__(self, ctx, embeds, channels):
+            super().__init__(timeout=60)
+            self.ctx = ctx
+            self.embeds = embeds
+            self.channels = channels
+            self.current_page = 0
 
-        def check(interaction):
-            return interaction.user == ctx.author and interaction.message.id == msg.id
+        @discord.ui.button(label="⬅️", style=discord.ButtonStyle.primary)
+        async def previous(self, button: discord.ui.Button, interaction: discord.Interaction):
+            if self.current_page > 0:
+                self.current_page -= 1
+                await interaction.response.edit_message(embed=self.embeds[self.current_page])
 
-        while True:
-            try:
-                interaction = await bot.wait_for("interaction", timeout=60.0, check=check)
-                if interaction.custom_id == "left":
-                    if page > 0:
-                        page -= 1
-                        embed = embeds[page]
-                        await interaction.response.edit_message(embed=embed)
-                elif interaction.custom_id == "right":
-                    if page < len(embeds) - 1:
-                        page += 1
-                        embed = embeds[page]
-                        await interaction.response.edit_message(embed=embed)
-                elif interaction.custom_id == "send_all":
-                    selected_channel = matched_channels[page]
-                    async for message in selected_channel.history(limit=None):
-                        for attachment in message.attachments:
-                            await ctx.send(attachment.url)
-                    await interaction.response.defer()
-                    break
-                elif interaction.custom_id == "copy_id":
-                    await ctx.send(embed=discord.Embed(description=f" {matched_channels[page].id}"))
-                    await interaction.response.defer()
-            except:
-                break
+        @discord.ui.button(label="➡️", style=discord.ButtonStyle.primary)
+        async def next(self, button: discord.ui.Button, interaction: discord.Interaction):
+            if self.current_page < len(self.embeds) - 1:
+                self.current_page += 1
+                await interaction.response.edit_message(embed=self.embeds[self.current_page])
 
-    await send_page(current_page)
+        @discord.ui.button(label="Send All Media", style=discord.ButtonStyle.success)
+        async def send_all(self, button: discord.ui.Button, interaction: discord.Interaction):
+            selected_channel = self.channels[self.current_page]
+            async for message in selected_channel.history(limit=None):
+                for attachment in message.attachments:
+                    await self.ctx.send(attachment.url)
+            await interaction.response.defer()
+
+        @discord.ui.button(label="Copy ID", style=discord.ButtonStyle.secondary)
+        async def copy_id(self, button: discord.ui.Button, interaction: discord.Interaction):
+            await self.ctx.send(embed=discord.Embed(description=f" {self.channels[self.current_page].id}"))
+            await interaction.response.defer()
+
+    view = MediaView(ctx, embeds, matched_channels)
+    await ctx.send(embed=embeds[current_page], view=view)
 
 @bot.command()
 async def show(ctx):
