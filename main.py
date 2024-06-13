@@ -54,7 +54,7 @@ async def add(ctx, *, channel_name):
 
     await send_attachments(new_channel, attachments)
 
-    await ctx.send(f"Channel {new_channel.mention} created successfully.")
+    await ctx.send(f"Media 📺 saved 😋 successfully.")
 
 @bot.command()
 async def addto(ctx, channel_id: int):
