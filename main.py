@@ -108,20 +108,36 @@ async def search(ctx, *, search_term):
             self.embeds = embeds
             self.channels = channels
             self.current_page = 0
+            self.update_buttons()
 
-        @discord.ui.button(label="⬅️", style=discord.ButtonStyle.primary)
+        def update_buttons(self):
+            self.clear_items()
+            if self.current_page > 0:
+                self.add_item(discord.ui.Button(label="⬅️", custom_id="left", style=discord.ButtonStyle.primary))
+            if self.current_page < len(self.embeds) - 1:
+                self.add_item(discord.ui.Button(label="➡️", custom_id="right", style=discord.ButtonStyle.primary))
+            self.add_item(discord.ui.Button(label="Send All Media", custom_id="send_all", style=discord.ButtonStyle.success))
+            self.add_item(discord.ui.Button(label="Copy ID", custom_id="copy_id", style=discord.ButtonStyle.secondary))
+
+        @discord.ui.button(label="⬅️", style=discord.ButtonStyle.primary, custom_id="left", row=0)
         async def previous(self, button: discord.ui.Button, interaction: discord.Interaction):
             if self.current_page > 0:
                 self.current_page -= 1
-                await interaction.response.edit_message(embed=self.embeds[self.current_page])
+                self.update_buttons()
+                await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
+            else:
+                await interaction.response.send_message("No previous pages left.", ephemeral=True)
 
-        @discord.ui.button(label="➡️", style=discord.ButtonStyle.primary)
+        @discord.ui.button(label="➡️", style=discord.ButtonStyle.primary, custom_id="right", row=0)
         async def next(self, button: discord.ui.Button, interaction: discord.Interaction):
             if self.current_page < len(self.embeds) - 1:
                 self.current_page += 1
-                await interaction.response.edit_message(embed=self.embeds[self.current_page])
+                self.update_buttons()
+                await interaction.response.edit_message(embed=self.embeds[self.current_page], view=self)
+            else:
+                await interaction.response.send_message("No more pages left.", ephemeral=True)
 
-        @discord.ui.button(label="Send All Media", style=discord.ButtonStyle.success)
+        @discord.ui.button(label="Send All Media", style=discord.ButtonStyle.success, custom_id="send_all", row=1)
         async def send_all(self, button: discord.ui.Button, interaction: discord.Interaction):
             selected_channel = self.channels[self.current_page]
             async for message in selected_channel.history(limit=None):
@@ -129,9 +145,9 @@ async def search(ctx, *, search_term):
                     await self.ctx.send(attachment.url)
             await interaction.response.defer()
 
-        @discord.ui.button(label="Copy ID", style=discord.ButtonStyle.secondary)
+        @discord.ui.button(label="Copy ID", style=discord.ButtonStyle.secondary, custom_id="copy_id", row=1)
         async def copy_id(self, button: discord.ui.Button, interaction: discord.Interaction):
-            await self.ctx.send(embed=discord.Embed(description=f" {self.channels[self.current_page].id}"))
+            await self.ctx.send(embed=discord.Embed(description=f"{self.channels[self.current_page].id}"))
             await interaction.response.defer()
 
     view = MediaView(ctx, embeds, matched_channels)
