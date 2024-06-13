@@ -135,7 +135,7 @@ async def search(ctx, *, search_term):
 @bot.command()
 async def show(ctx):
     # Define the server IDs from which you want to display channels
-    server_ids = [1250740008588017765]  # Add more server IDs if needed
+    server_ids = [1250740008588017765,1250835568644853760]  # Add more server IDs if needed
     
     guild = bot.get_guild(guild_id)
     if guild is None:
