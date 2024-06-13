@@ -1,9 +1,11 @@
 import discord
 from discord.ext import commands
+from discord.ui import Button, View
 import os
 import aiohttp
 import io
 from keep_alive import keep_alive
+
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
@@ -79,6 +81,26 @@ async def addto(ctx, channel_id: int):
 
     await ctx.send(f"Media 📺 saved 😋 successfully.")
 
+class ChannelButton(Button):
+    def __init__(self, label, channel_id):
+        super().__init__(label=label, style=discord.ButtonStyle.primary)
+        self.channel_id = channel_id
+
+    async def callback(self, interaction: discord.Interaction):
+        channel = bot.get_channel(self.channel_id)
+        async for message in channel.history(limit=None):
+            for attachment in message.attachments:
+                await interaction.response.send_message(attachment.url)
+        await interaction.message.delete()
+
+class CopyIDButton(Button):
+    def __init__(self, label, channel_id):
+        super().__init__(label=label, style=discord.ButtonStyle.secondary)
+        self.channel_id = channel_id
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.send_message(f"Copied ID: {self.channel_id}", ephemeral=True)
+
 @bot.command()
 async def search(ctx, *, search_term):
     guild = bot.get_guild(guild_id)
@@ -93,44 +115,65 @@ async def search(ctx, *, search_term):
         return
 
     embeds = []
+    views = []
+
     for channel in matched_channels:
         embed = discord.Embed(title="Media Found", description=channel.name)
         embed.set_footer(text=f"Media ID: {channel.id}")
         embeds.append(embed)
 
+        view = View()
+        view.add_item(ChannelButton(label="Show Media", channel_id=channel.id))
+        view.add_item(CopyIDButton(label="Copy ID", channel_id=channel.id))
+        views.append(view)
+
     current_page = 0
 
     async def send_page(page):
-        msg = await ctx.send(embed=embeds[page])
-        await msg.add_reaction("⬅️")
-        await msg.add_reaction("➡️")
-        await msg.add_reaction("✅")
-
-        def check(reaction, user):
-            return user == ctx.author and str(reaction.emoji) in ["⬅️", "➡️", "✅"]
-
-        while True:
-            try:
-                reaction, user = await bot.wait_for('reaction_add', timeout=60.0, check=check)
-                if str(reaction.emoji) == "⬅️":
-                    if page > 0:
-                        page -= 1
-                        await msg.edit(embed=embeds[page])
-                elif str(reaction.emoji) == "➡️":
-                    if page < len(embeds) - 1:
-                        page += 1
-                        await msg.edit(embed=embeds[page])
-                elif str(reaction.emoji) == "✅":
-                    selected_channel = matched_channels[page]
-                    async for message in selected_channel.history(limit=None):
-                        for attachment in message.attachments:
-                            await ctx.send(attachment.url)
-                    break
-                await msg.remove_reaction(reaction, user)
-            except:
-                break
+        msg = await ctx.send(embed=embeds[page], view=views[page])
 
     await send_page(current_page)
+
+class ShowPageView(View):
+    def __init__(self, pages, author):
+        super().__init__()
+        self.pages = pages
+        self.author = author
+        self.current_page_index = 0
+        self.update_buttons()
+
+    def update_buttons(self):
+        for i in range(10):
+            if i < len(self.pages[self.current_page_index]):
+                self.add_item(ChannelButton(label=f"{i + 1}", channel_id=self.pages[self.current_page_index][i].id))
+            else:
+                break
+
+    @discord.ui.button(label="Previous", style=discord.ButtonStyle.primary)
+    async def previous_page(self, button: Button, interaction: discord.Interaction):
+        if interaction.user == self.author:
+            if self.current_page_index > 0:
+                self.current_page_index -= 1
+                self.update_buttons()
+                await interaction.response.edit_message(embed=self.create_embed(), view=self)
+        else:
+            await interaction.response.send_message("You cannot interact with this button.", ephemeral=True)
+
+    @discord.ui.button(label="Next", style=discord.ButtonStyle.primary)
+    async def next_page(self, button: Button, interaction: discord.Interaction):
+        if interaction.user == self.author:
+            if self.current_page_index < len(self.pages) - 1:
+                self.current_page_index += 1
+                self.update_buttons()
+                await interaction.response.edit_message(embed=self.create_embed(), view=self)
+        else:
+            await interaction.response.send_message("You cannot interact with this button.", ephemeral=True)
+
+    def create_embed(self):
+        embed = discord.Embed(title=f"Category Page {self.current_page_index + 1}/{len(self.pages)}")
+        for i, channel in enumerate(self.pages[self.current_page_index], start=1):
+            embed.add_field(name=f"{i}.", value=channel.name, inline=False)
+        return embed
 
 @bot.command()
 async def show(ctx):
@@ -155,43 +198,9 @@ async def show(ctx):
             pages.append(current_page)
             current_page = []
 
-    current_page_index = 0
+    view = ShowPageView(pages, ctx.author)
+    embed = view.create_embed()
+    await ctx.send(embed=embed, view=view)
 
-    async def send_page(page):
-        embed = discord.Embed(title=f"Category Page {page+1}/{len(pages)}")
-        for i, channel in enumerate(pages[page], start=1):
-            embed.add_field(name=f"{i}.", value=channel.name, inline=False)
-        msg = await ctx.send(embed=embed)
-        for i in range(1, len(pages[page]) + 1):
-            await msg.add_reaction(f"{i}️⃣")
-        if page > 0:
-            await msg.add_reaction("⬅️")
-        if page < len(pages) - 1:
-            await msg.add_reaction("➡️")
-
-        def check(reaction, user):
-            return user == ctx.author and str(reaction.emoji) in [f"{i}️⃣" for i in range(1, len(pages[page]) + 1)] + ["⬅️", "➡️"]
-
-        while True:
-            try:
-                reaction, user = await bot.wait_for('reaction_add', timeout=60.0, check=check)
-                if str(reaction.emoji) in [f"{i}️⃣" for i in range(1, len(pages[page]) + 1)]:
-                    selected_index = [f"{i}️⃣" for i in range(1, len(pages[page]) + 1)].index(str(reaction.emoji))
-                    selected_channel = pages[page][selected_index]
-                    async for message in selected_channel.history(limit=None):
-                        for attachment in message.attachments:
-                            await ctx.send(attachment.url)
-                    break
-                elif str(reaction.emoji) == "⬅️" and page > 0:
-                    await send_page(page - 1)
-                    break
-                elif str(reaction.emoji) == "➡️" and page < len(pages) - 1:
-                    await send_page(page + 1)
-                    break
-                await msg.remove_reaction(reaction, user)
-            except:
-                break
-
-    await send_page(current_page_index)
 keep_alive()
 bot.run(os.environ['Token'])
