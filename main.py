@@ -107,7 +107,7 @@ async def search(ctx, *, search_term):
         await msg.add_reaction("✅")
 
         def check(reaction, user):
-            return user == ctx.author and str(reaction.emoji) in ["⬅️", "➡️", "✅"]
+            return user == ctx.author and str(reaction.emoji) in ["◀️", "▶️", "✅"]
 
         while True:
             try:
@@ -213,7 +213,7 @@ user_channels = {}
 # IDs
 source_server_id = 1248192277428310016  # Replace with your source server ID
 target_server_id = 1250835568644853760  # Replace with your target server ID
-source_channel_id = 1248209810827251744  # Replace with your source channel ID
+source_channel_id = 1250850424202985512  # Replace with your source channel ID
 
 
 
