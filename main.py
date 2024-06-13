@@ -3,14 +3,15 @@ from discord.ext import commands
 import os
 import aiohttp
 import io
+from keep_alive import keep_alive
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
-from keep_alive import keep_alive
+
 bot = commands.Bot(command_prefix='.', intents=intents)
 
 guild_id = 1250740008588017765  # Replace with your specific guild ID
-category_name_base = "Media Category"
+category_name_base = "Media"
 max_channels_per_category = 50  # Discord's limit
 
 @bot.event
@@ -53,7 +54,30 @@ async def add(ctx, *, channel_name):
 
     await send_attachments(new_channel, attachments)
 
-    await ctx.send(f"Media saved 😋")
+    await ctx.send(f"Channel {new_channel.mention} created successfully.")
+
+@bot.command()
+async def addto(ctx, channel_id: int):
+    guild = bot.get_guild(guild_id)
+    if guild is None:
+        await ctx.send("Guild not found.")
+        return
+
+    channel = guild.get_channel(channel_id)
+    if channel is None:
+        await ctx.send("Channel not found.")
+        return
+
+    # Check if the command was a reply to a message with attachments
+    if ctx.message.reference:
+        replied_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+        attachments = replied_message.attachments
+    else:
+        attachments = ctx.message.attachments
+
+    await send_attachments(channel, attachments)
+
+    await ctx.send(f"Media 📺 saved 😋 successfully.")
 
 @bot.command()
 async def search(ctx, *, search_term):
@@ -65,7 +89,7 @@ async def search(ctx, *, search_term):
     matched_channels = [channel for channel in guild.text_channels if search_term.lower() in channel.name.lower()]
 
     if not matched_channels:
-        await ctx.send("No match found.")
+        await ctx.send("No media found.")
         return
 
     embeds = []
@@ -169,6 +193,5 @@ async def show(ctx):
                 break
 
     await send_page(current_page_index)
-
 keep_alive()
 bot.run(os.environ['Token'])
