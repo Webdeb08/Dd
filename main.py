@@ -6,7 +6,7 @@ import io
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
-
+from keep_alive import keep_alive
 bot = commands.Bot(command_prefix='.', intents=intents)
 
 guild_id = 1250740008588017765  # Replace with your specific guild ID
@@ -170,4 +170,5 @@ async def show(ctx):
 
     await send_page(current_page_index)
 
+keep_alive()
 bot.run(os.environ['Token'])
