@@ -9,7 +9,7 @@ intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='.', intents=intents)
+bot = commands.Bot(command_prefix=',', intents=intents)
 
 guild_id = 1250740008588017765  # Replace with your specific guild ID
 category_name_base = "Media"
@@ -129,7 +129,10 @@ async def search(ctx, *, search_term):
                     async for message in selected_channel.history(limit=None):
                         for attachment in message.attachments:
                             await ctx.send(attachment.url)
+                    await msg.delete()
                     break
+                 
+               
                 await msg.remove_reaction(reaction, user)
             except:
                 break
@@ -209,74 +212,25 @@ async def show(ctx):
 
     await send_page(current_page_index)
 
-# Dictionary to keep track of user channels in the target server
-user_channels = {}
 
-# IDs
-source_server_id = 1248192277428310016  # Replace with your source server ID
-target_server_id = 1250835568644853760  # Replace with your target server ID
-source_channel_id = 124  # Replace with your source channel ID
+       
 
 @bot.command()
-async def tm(ctx):
-    if ctx.guild.id != source_server_id:
-        await ctx.send("This command can only be used in the source server.")
-        return
-
+async def s(ctx, source_channel_id: int, target_channel_id: int):
     source_channel = bot.get_channel(source_channel_id)
-    target_server = bot.get_guild(target_server_id)
+    target_channel = bot.get_channel(target_channel_id)
 
-    if source_channel is None or target_server is None:
-        await ctx.send("Source channel or target server not found.")
+    if source_channel is None or target_channel is None:
+        await ctx.send("Lagawele choliya ke hook raja ji")
         return
 
     async for message in source_channel.history(limit=None):
-        # Check if the message contains media
-        if message.attachments:
-            sender_name = message.author.name
+        for attachment in message.attachments:
+            if attachment.url.lower().endswith(('jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov', 'webm')):
+                await target_channel.send(content=attachment.url)
+                
+    await ctx.send("Media transfer complete!")
 
-            # Create or get the channel for the user
-            if sender_name not in user_channels:
-                channel = await target_server.create_text_channel(sender_name)
-                user_channels[sender_name] = channel.id
-            else:
-                channel_id = user_channels[sender_name]
-                channel = bot.get_channel(channel_id)
-
-            # Repost the media in the user's channel
-            for attachment in message.attachments:
-                await channel.send(file=await attachment.to_file())
-
-    await ctx.send("Media transfer complete.")
-
-@bot.event
-async def on_message(message):
-    # Ignore messages from bots
-    if message.author.bot:
-        return
-
-    # Check if the message is in the source channel
-    if message.guild.id == source_server_id and message.channel.id == source_channel_id:
-        # Check if the message contains media
-        if message.attachments:
-            # Get the target server and the name of the sender
-            target_server = bot.get_guild(target_server_id)
-            sender_name = message.author.name
-
-            # Create or get the channel for the user
-            if sender_name not in user_channels:
-                channel = await target_server.create_text_channel(sender_name)
-                user_channels[sender_name] = channel.id
-            else:
-                channel_id = user_channels[sender_name]
-                channel = bot.get_channel(channel_id)
-
-            # Repost the media in the user's channel
-            for attachment in message.attachments:
-                await channel.send(file=await attachment.to_file())
-
-    # Process commands if any
-    await bot.process_commands(message)
 
 keep_alive()
 bot.run(os.environ['Token'])
