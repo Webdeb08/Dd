@@ -4,6 +4,7 @@ import os
 import aiohttp
 import io
 from keep_alive import keep_alive
+
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
@@ -54,7 +55,7 @@ async def add(ctx, *, channel_name):
 
     await send_attachments(new_channel, attachments)
 
-    await ctx.send(f"Media 📺 saved 😋 successfully.")
+    await ctx.send("Media 📺 saved 😋 successfully.")
 
 @bot.command()
 async def addto(ctx, channel_id: int):
@@ -77,7 +78,7 @@ async def addto(ctx, channel_id: int):
 
     await send_attachments(channel, attachments)
 
-    await ctx.send(f"Media 📺 saved 😋 successfully.")
+    await ctx.send("Media 📺 saved 😋 successfully.")
 
 @bot.command()
 async def search(ctx, *, search_term):
@@ -100,8 +101,11 @@ async def search(ctx, *, search_term):
 
     current_page = 0
 
-    async def send_page(page):
-        msg = await ctx.send(embed=embeds[page])
+    async def send_page(page, msg=None):
+        if msg is None:
+            msg = await ctx.send(embed=embeds[page])
+        else:
+            await msg.edit(embed=embeds[page])
         await msg.add_reaction("◀️")
         await msg.add_reaction("▶️")
         await msg.add_reaction("✅")
@@ -115,11 +119,11 @@ async def search(ctx, *, search_term):
                 if str(reaction.emoji) == "◀️":
                     if page > 0:
                         page -= 1
-                        await msg.edit(embed=embeds[page])
+                        await send_page(page, msg)
                 elif str(reaction.emoji) == "▶️":
                     if page < len(embeds) - 1:
                         page += 1
-                        await msg.edit(embed=embeds[page])
+                        await send_page(page, msg)
                 elif str(reaction.emoji) == "✅":
                     selected_channel = matched_channels[page]
                     async for message in selected_channel.history(limit=None):
@@ -129,14 +133,13 @@ async def search(ctx, *, search_term):
                 await msg.remove_reaction(reaction, user)
             except:
                 break
-        await msg.delete()  # Delete the embed message after interaction is complete
 
     await send_page(current_page)
 
 @bot.command()
 async def show(ctx):
     # Define the server IDs from which you want to display channels
-    server_ids = [1250740008588017765]  # Add more server IDs if needed
+    server_ids = [1250835568644853760, 1250740008588017765]  # Add more server IDs if needed
 
     guild = bot.get_guild(guild_id)
     if guild is None:
@@ -165,11 +168,14 @@ async def show(ctx):
 
     current_page_index = 0
 
-    async def send_page(page):
-        embed = discord.Embed(title=f"Category Page {page+1}/{len(pages)}")
+    async def send_page(page, msg=None):
+        embed = discord.Embed(title=f"Channels Page {page + 1}/{len(pages)}")
         for i, channel in enumerate(pages[page], start=1):
             embed.add_field(name=f"{i}.", value=channel.name, inline=False)
-        msg = await ctx.send(embed=embed)
+        if msg is None:
+            msg = await ctx.send(embed=embed)
+        else:
+            await msg.edit(embed=embed)
         for i in range(1, len(pages[page]) + 1):
             await msg.add_reaction(f"{i}️⃣")
         if page > 0:
@@ -191,20 +197,17 @@ async def show(ctx):
                             await ctx.send(attachment.url)
                     break
                 elif str(reaction.emoji) == "⬅️" and page > 0:
-                    await send_page(page - 1)
-                    await msg.delete()  # Delete the current page message
+                    await send_page(page - 1, msg)
                     break
                 elif str(reaction.emoji) == "➡️" and page < len(pages) - 1:
-                    await send_page(page + 1)
-                    await msg.delete()  # Delete the current page message
+                    await send_page(page + 1, msg)
                     break
                 await msg.remove_reaction(reaction, user)
             except:
                 break
-        await msg.delete()  # Delete the embed message after interaction is complete
+        await msg.delete()
 
     await send_page(current_page_index)
-
 
 # Dictionary to keep track of user channels in the target server
 user_channels = {}
@@ -212,7 +215,7 @@ user_channels = {}
 # IDs
 source_server_id = 1248192277428310016  # Replace with your source server ID
 target_server_id = 1250835568644853760  # Replace with your target server ID
-source_channel_id = 123  # Replace with your source channel ID
+source_channel_id = 124  # Replace with your source channel ID
 
 @bot.command()
 async def tm(ctx):
@@ -274,5 +277,6 @@ async def on_message(message):
 
     # Process commands if any
     await bot.process_commands(message)
+
 keep_alive()
 bot.run(os.environ['Token'])
