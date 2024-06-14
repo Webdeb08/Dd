@@ -170,6 +170,7 @@ async def show(ctx):
             current_page = []
 
     current_page_index = 0
+    messages_to_delete = []  # List to keep track of messages to delete
 
     class ShowView(View):
         def __init__(self, pages, ctx):
@@ -194,12 +195,13 @@ async def show(ctx):
 
         def create_callback(self, index):
             async def callback(interaction: discord.Interaction):
+                nonlocal messages_to_delete
                 if index < len(self.pages[self.current_page]):
                     selected_channel = self.pages[self.current_page][index]
                     async for message in selected_channel.history(limit=None):
                         for attachment in message.attachments:
-                            await interaction.message.delete()
-                            await self.ctx.send(attachment.url)
+                            sent_message = await self.ctx.send(attachment.url)
+                            messages_to_delete.append(sent_message)  # Track sent messages
 
             return callback
 
@@ -227,23 +229,36 @@ async def show(ctx):
     embed = discord.Embed(title=f"Channels Page {current_page_index + 1}/{len(pages)}")
     for i, channel in enumerate(pages[current_page_index], start=1):
         embed.add_field(name=f"{i}.", value=channel.name, inline=False)
-    await ctx.send(embed=embed, view=view)
+    message = await ctx.send(embed=embed, view=view)
+
+    # Wait for the view to finish and then delete embeds
+    await view.wait()
+    await message.delete()
+
+    for msg in messages_to_delete:
+        await msg.delete()
+
 
 @bot.command()
-async def s(ctx, source_channel_id: int, target_channel_id: int):
-    source_channel = bot.get_channel(source_channel_id)
-    target_channel = bot.get_channel(target_channel_id)
+async def s(ctx, from_channel_id: int, to_channel_id: int):
+    from_channel = bot.get_channel(from_channel_id)
+    to_channel = bot.get_channel(to_channel_id)
 
-    if source_channel is None or target_channel is None:
-        await ctx.send("Lagawele choliya ke hook raja ji")
+    if not from_channel or not to_channel:
+        await ctx.send("lagawele choliya ke hook rajs ji")
         return
 
-    async for message in source_channel.history(limit=None):
-        for attachment in message.attachments:
-            if attachment.url.lower().endswith(('jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov', 'webm')):
-                await target_channel.send(content=attachment.url)
+    async for message in from_channel.history(limit=None):
+        if message.attachments:
+            for attachment in message.attachments:
+                # Download the attachment
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(attachment.url) as resp:
+                        if resp.status == 200:
+                            # Send the attachment to the destination channel
+                            await to_channel.send(file=discord.File(await resp.read(), attachment.filename))
 
-    await ctx.send("Media transfer complete!")
+    await ctx.send("Media from the specified channel has been sent.")
 
 keep_alive()
 bot.run(os.environ['Token'])
