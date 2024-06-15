@@ -2,3 +2,5 @@ discord
 aiohttp
 flask
 discord-components
+moviepy
+requests
