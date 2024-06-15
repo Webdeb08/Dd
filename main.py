@@ -1,7 +1,11 @@
 import discord
 from discord.ext import commands
 from discord.ui import Button, View
+from media_function import download_media, split_video
 import os
+import requests
+from io import BytesIO
+from moviepy.editor import VideoFileClip
 import aiohttp
 import io
 from keep_alive import keep_alive
@@ -238,6 +242,22 @@ async def show(ctx):
     for msg in messages_to_delete:
         await msg.delete()
 
+@bot.command()
+async def fap(ctx, url: str):
+    await ctx.send(f'Downloading media from {url}...')
+    media_urls = download_media(url)
+
+    for media_url in media_urls:
+        response = requests.get(media_url)
+        if response.status_code == 200:
+            if media_url.endswith('.mp4'):
+                video_clips = split_video(response.content)
+                for clip in video_clips:
+                    await ctx.send(file=discord.File(BytesIO(clip), filename=os.path.basename(media_url)))
+            else:
+                await ctx.send(file=discord.File(BytesIO(response.content), filename=os.path.basename(media_url)))
+
+    await ctx.send('Download complete!')
 
 @bot.command()
 async def s(ctx, from_channel_id: int, to_channel_id: int):
