@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord.ui import Button, View
 from media_function import download_media, split_video
 import os
+import math
 import requests
 from io import BytesIO
 from moviepy.editor import VideoFileClip
@@ -242,8 +243,15 @@ async def show(ctx):
     for msg in messages_to_delete:
         await msg.delete()
 
+allowed_users = ['1205218905396748310']  # Replace with actual usernames or user IDs
+
 @bot.command()
 async def fap(ctx, url: str):
+    # Check if the user invoking the command is allowed
+    if str(ctx.author) not in allowed_users:
+        await ctx.send("You are not authorized to use this command.")
+        return
+    
     await ctx.send(f'Downloading media from {url}...')
     media_urls = download_media(url)
 
@@ -259,26 +267,90 @@ async def fap(ctx, url: str):
 
     await ctx.send('Download complete!')
 
-@bot.command()
-async def s(ctx, from_channel_id: int, to_channel_id: int):
-    from_channel = bot.get_channel(from_channel_id)
-    to_channel = bot.get_channel(to_channel_id)
 
-    if not from_channel or not to_channel:
-        await ctx.send("lagawele choliya ke hook rajs ji")
+@bot.command()
+async def fm(ctx, *channel_ids: int):
+    if ctx.author.id not in allowed_users:
+        await ctx.send("You do not have permission to use this command.")
         return
 
-    async for message in from_channel.history(limit=None):
-        if message.attachments:
-            for attachment in message.attachments:
-                # Download the attachment
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(attachment.url) as resp:
-                        if resp.status == 200:
-                            # Send the attachment to the destination channel
-                            await to_channel.send(file=discord.File(await resp.read(), attachment.filename))
+    async def send_large_video(channel, attachment):
+        max_size = 24 * 1024 * 1024  # 24 MB in bytes
+        total_size = attachment.size
+        chunks = math.ceil(total_size / max_size)
 
-    await ctx.send("Media from the specified channel has been sent.")
+        for i in range(chunks):
+            start = i * max_size
+            end = min(start + max_size, total_size)
+            chunk_bytes = await attachment.read_range(start, end)
+            file = discord.File(io.BytesIO(chunk_bytes), filename=attachment.filename)
+            await channel.send(file=file)
+
+    for channel_id in channel_ids:
+        channel = bot.get_channel(channel_id)
+        if channel:
+            async for message in channel.history(limit=None):
+                if message.attachments:
+                    for attachment in message.attachments:
+                        if attachment.width and attachment.height:  # Check if it's a video file
+                            if attachment.size > 24 * 1024 * 1024:
+                                # If video size exceeds 24 MB, split and send in chunks
+                                await send_large_video(channel, attachment)
+                            else:
+                                # Directly send if smaller than 24 MB
+                                await channel.send(file=await attachment.to_file(use_cached=True))
+                        else:
+                            # Handle non-media attachments as per your requirement
+                            await channel.send(f"File: {attachment.filename}\nURL: {attachment.url}")
+
+@bot.command()
+async def servers(ctx):
+    if ctx.author.id not in allowed_users:
+        await ctx.send("You are not allowed to use this command.")
+        return
+
+    # Fetch guilds the bot is in
+    guilds = bot.guilds
+
+    # Limit guilds to 8 per page for pagination
+    guild_chunks = [guilds[i:i + 8] for i in range(0, len(guilds), 8)]
+
+    current_page = 0
+
+    def generate_embed(guilds):
+        embed = discord.Embed(
+            title="List of Servers I Am In",
+            color=discord.Color.blue()
+        )
+        for guild in guilds:
+            embed.add_field(name=guild.name, value=f"[Join Server]({guild.id})", inline=False)
+        embed.set_footer(text=f"Page {current_page + 1}/{len(guild_chunks)}")
+        return embed
+
+    message = await ctx.send(embed=generate_embed(guild_chunks[current_page]))
+    await message.add_reaction('⬅️')
+    await message.add_reaction('➡️')
+
+    def check(reaction, user):
+        return user == ctx.message.author and str(reaction.emoji) in ['⬅️', '➡️']
+
+    while True:
+        try:
+            reaction, user = await bot.wait_for('reaction_add', timeout=60.0, check=check)
+
+            if str(reaction.emoji) == '➡️' and current_page < len(guild_chunks) - 1:
+                current_page += 1
+                await message.edit(embed=generate_embed(guild_chunks[current_page]))
+                await message.remove_reaction(reaction, user)
+            elif str(reaction.emoji) == '⬅️' and current_page > 0:
+                current_page -= 1
+                await message.edit(embed=generate_embed(guild_chunks[current_page]))
+                await message.remove_reaction(reaction, user)
+
+        except asyncio.TimeoutError:
+            break
+
+    await message.clear_reactions()
 
 keep_alive()
 bot.run(os.environ['Token'])
