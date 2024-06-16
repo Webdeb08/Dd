@@ -270,40 +270,42 @@ async def fap(ctx, url: str):
     await ctx.send('Download complete!')
 
 
+
 @bot.command()
-async def fm(ctx):
-    if ctx.author.id not in allowed_users:
+async def fm(ctx, *channel_ids: int):
+    if ctx.author.id not in ALLOWED_USERS:
         await ctx.send("You do not have permission to use this command.")
         return
 
-    async def send_large_attachment(channel, attachment):
+    async def send_large_video(channel, attachment):
         max_size = 24 * 1024 * 1024  # 24 MB in bytes
         total_size = attachment.size
+        chunks = math.ceil(total_size / max_size)
 
-        if total_size > max_size:
-            # If attachment is larger than 24 MB, split and send in chunks
-            chunks = math.ceil(total_size / max_size)
-            for i in range(chunks):
-                start = i * max_size
-                end = min(start + max_size, total_size)
-                chunk_bytes = await attachment.read_range(start, end)
-                file = discord.File(io.BytesIO(chunk_bytes), filename=attachment.filename)
-                await channel.send(file=file)
-        else:
-            # Directly send the attachment if it's smaller than or equal to 24 MB
-            await channel.send(file=await attachment.to_file(use_cached=True))
+        for i in range(chunks):
+            start = i * max_size
+            end = min(start + max_size, total_size)
+            chunk_bytes = await attachment.read_range(start, end)
+            file = discord.File(io.BytesIO(chunk_bytes), filename=attachment.filename)
+            await ctx.send(file=file)
 
-    # Check for attachments in the invoking message
-    if ctx.message.attachments:
-        for attachment in ctx.message.attachments:
-            if attachment.width and attachment.height:
-                # Check if it's a video file (assuming it's a video based on the previous code)
-                await send_large_attachment(ctx.channel, attachment)
-            else:
-                # Handle non-media attachments as per your requirement
-                await ctx.channel.send(f"File: {attachment.filename}\nURL: {attachment.url}")
-    else:
-        await ctx.send("No attachments found in your message.")
+    for channel_id in channel_ids:
+        channel = bot.get_channel(channel_id)
+        if channel:
+            async for message in channel.history(limit=None):
+                if message.attachments:
+                    for attachment in message.attachments:
+                        if attachment.width and attachment.height:  # Check if it's a video file
+                            if attachment.size > 24 * 1024 * 1024:
+                                # If video size exceeds 24 MB, split and send in chunks
+                                await send_large_video(channel, attachment)
+                            else:
+                                # Directly send if smaller than 24 MB
+                                await ctx.send(file=await attachment.to_file(use_cached=True))
+                        else:
+                            # Handle non-media attachments as per your requirement
+                            await ctx.send(f"File: {attachment.filename}\nURL: {attachment.url}")
+
 
 
 @bot.command()
