@@ -17,7 +17,8 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix='.', intents=intents)
 
-guild_id = 1250740008588017765  # Replace with your specific guild ID
+guild_id = 1250740008588017765
+allowed_users = ['1205218905396748310']# Replace with your specific guild ID
 category_name_base = "Media"
 max_channels_per_category = 50  # Discord's limit
 
@@ -243,7 +244,7 @@ async def show(ctx):
     for msg in messages_to_delete:
         await msg.delete()
 
-allowed_users = ['1205218905396748310']  # Replace with actual usernames or user IDs
+  # Replace with actual usernames or user IDs
 
 @bot.command()
 async def fap(ctx, url: str):
