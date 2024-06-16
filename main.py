@@ -18,7 +18,7 @@ intents.message_content = True
 bot = commands.Bot(command_prefix='.', intents=intents)
 
 guild_id = 1250740008588017765
-allowed_users = ['1205218905396748310']
+allowed_users = [1205218905396748310]
 # Replace with your specific guild ID
 category_name_base = "Media"
 max_channels_per_category = 50  # Discord's limit
