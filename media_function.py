@@ -31,20 +31,22 @@ def split_video(video_bytes, max_size_mb=23):
     if video_size_mb <= max_size_mb:
         return [video_bytes]
 
+    # Calculate how many parts are needed based on the video size
+    num_parts = math.ceil(video_size_mb / max_size_mb)
+
     video_clips = []
     video = VideoFileClip(BytesIO(video_bytes))
     duration = video.duration
-    part_number = 0
-    current_start = 0
 
-    while current_start < duration:
-        current_end = current_start + (max_size_mb * 1024 * 1024 / video_size_mb) * duration
-        current_end = min(current_end, duration)
-        subclip = video.subclip(current_start, current_end)
+    for part_number in range(num_parts):
+        start_time = part_number * (duration / num_parts)
+        end_time = min((part_number + 1) * (duration / num_parts), duration)
+        
+        subclip = video.subclip(start_time, end_time)
         subclip_bytes = BytesIO()
         subclip.write_videofile(subclip_bytes, codec='libx264', temp_audiofile='temp-audio.m4a', remove_temp=True, audio_codec='aac')
         video_clips.append(subclip_bytes.getvalue())
-        current_start = current_end
-        part_number += 1
 
     return video_clips
+
+    
