@@ -250,7 +250,7 @@ async def show(ctx):
 @bot.command()
 async def fap(ctx, url: str):
     # Check if the user invoking the command is allowed
-    if str(ctx.author) not in allowed_users:
+    if ctx.author.id not in allowed_users:
         await ctx.send("You are not authorized to use this command.")
         return
     
@@ -308,51 +308,64 @@ async def fm(ctx, *channel_ids: int):
 @bot.command()
 async def servers(ctx):
     if ctx.author.id not in allowed_users:
-        await ctx.send("You are not allowed to use this command.")
+        await ctx.send("You are not authorized to use this command.")
         return
 
-    # Fetch guilds the bot is in
     guilds = bot.guilds
+    pages = []
+    current_page = []
+    
+    for index, guild in enumerate(guilds, start=1):
+        current_page.append(f"{index}. {guild.name}")
+        if len(current_page) == 8:  # Change to any number of guilds per page
+            pages.append("\n".join(current_page))
+            current_page = []
+    
+    if current_page:
+        pages.append("\n".join(current_page))
 
-    # Limit guilds to 8 per page for pagination
-    guild_chunks = [guilds[i:i + 8] for i in range(0, len(guilds), 8)]
+    embeds = []
+    for index, page in enumerate(pages):
+        embed = discord.Embed(title="Server List", description=page, color=discord.Color.blue())
+        embed.set_footer(text=f"Page {index+1} of {len(pages)}")
+        embeds.append(embed)
 
-    current_page = 0
+    current_index = 0
+    message = await ctx.send(embed=embeds[current_index])
 
-    def generate_embed(guilds):
-        embed = discord.Embed(
-            title="List of Servers I Am In",
-            color=discord.Color.blue()
-        )
-        for guild in guilds:
-            embed.add_field(name=guild.name, value=f"[Join Server]({guild.id})", inline=False)
-        embed.set_footer(text=f"Page {current_page + 1}/{len(guild_chunks)}")
-        return embed
+    # Add number emojis (1️⃣ to 8️⃣) for server invite links
+    for num in range(1, min(len(guilds), 9)):
+        await message.add_reaction(f"{num}\N{COMBINING ENCLOSING KEYCAP}")
 
-    message = await ctx.send(embed=generate_embed(guild_chunks[current_page]))
-    await message.add_reaction('⬅️')
-    await message.add_reaction('➡️')
+    await message.add_reaction("⬅️")
+    await message.add_reaction("➡️")
 
     def check(reaction, user):
-        return user == ctx.message.author and str(reaction.emoji) in ['⬅️', '➡️']
+        return user == ctx.author and str(reaction.emoji) in [f"{num}\N{COMBINING ENCLOSING KEYCAP}" for num in range(1, min(len(guilds), 9))] + ["⬅️", "➡️"] and reaction.message.id == message.id
 
     while True:
         try:
             reaction, user = await bot.wait_for('reaction_add', timeout=60.0, check=check)
 
-            if str(reaction.emoji) == '➡️' and current_page < len(guild_chunks) - 1:
-                current_page += 1
-                await message.edit(embed=generate_embed(guild_chunks[current_page]))
-                await message.remove_reaction(reaction, user)
-            elif str(reaction.emoji) == '⬅️' and current_page > 0:
-                current_page -= 1
-                await message.edit(embed=generate_embed(guild_chunks[current_page]))
-                await message.remove_reaction(reaction, user)
+            if str(reaction.emoji) == "➡️" and current_index < len(embeds) - 1:
+                current_index += 1
+                await message.edit(embed=embeds[current_index])
+            elif str(reaction.emoji) == "⬅️" and current_index > 0:
+                current_index -= 1
+                await message.edit(embed=embeds[current_index])
+            else:
+                num = int(reaction.emoji[0])  # Extract the number from emoji
+                guild = guilds[num - 1]
+                invite = await guild.text_channels[0].create_invite()  # Assuming invite is created for the first text channel
+                await ctx.send(f"Invite link for **{guild.name}**: {invite.url}")
+
+            await message.remove_reaction(reaction, user)
 
         except asyncio.TimeoutError:
             break
 
     await message.clear_reactions()
+
 
 keep_alive()
 bot.run(os.environ['Token'])
